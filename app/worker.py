@@ -1,3 +1,7 @@
+import os
+
+REDIS_URL = os.environ["REDIS_URL"]
+
 """Background execution for webhook-triggered reviews.
 
 GitHub expects a webhook response within ten seconds; a full review takes far
