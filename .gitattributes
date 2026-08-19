@@ -1,0 +1,11 @@
+# Normalise line endings in the repository so a Windows checkout and a Linux
+# CI runner produce identical diffs.
+* text=auto eol=lf
+
+# Diff fixtures are byte-sensitive: the Code Delta Parser reads raw unified
+# diffs, and a CRLF rewrite would change what the parser sees.
+tests/fixtures/*.txt -text
+
+*.png binary
+*.jpg binary
+*.pem binary

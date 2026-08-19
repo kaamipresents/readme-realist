@@ -1,0 +1,38 @@
+{
+  "action": "opened",
+  "number": 42,
+  "pull_request": {
+    "number": 42,
+    "title": "Add REDIS_URL support",
+    "html_url": "https://github.com/acme/widget/pull/42",
+    "draft": false,
+    "state": "open",
+    "head": {
+      "ref": "feature/add-env-var",
+      "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "base": {
+      "ref": "main",
+      "sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
+  },
+  "repository": {
+    "id": 5551212,
+    "name": "widget",
+    "full_name": "acme/widget",
+    "private": false,
+    "owner": {
+      "login": "acme",
+      "id": 4242,
+      "type": "Organization"
+    }
+  },
+  "installation": {
+    "id": 99,
+    "node_id": "MDIzOkludGVncmF0aW9uSW5zdGFsbGF0aW9uOTk="
+  },
+  "sender": {
+    "login": "octocat",
+    "id": 583231
+  }
+}
