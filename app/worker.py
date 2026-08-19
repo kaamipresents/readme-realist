@@ -1,7 +1,3 @@
-import os
-
-REDIS_URL = os.environ["REDIS_URL"]
-
 """Background execution for webhook-triggered reviews.
 
 GitHub expects a webhook response within ten seconds; a full review takes far
@@ -22,8 +18,11 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import os
 from collections.abc import Awaitable, Callable
 from typing import Any
+
+REDIS_URL = os.environ["REDIS_URL"]
 
 logger = logging.getLogger(__name__)
 
