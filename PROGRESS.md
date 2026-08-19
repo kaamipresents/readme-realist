@@ -1,7 +1,7 @@
 # ReadMe Realist — Progress & Resume Notes
 
-**Last updated:** 2026-08-19
-**Status:** Core application complete and offline-verified. Gemini backend verified against the live API. GitHub integration **not yet tested live**.
+**Last updated:** 2026-08-20
+**Status:** Core application complete and offline-verified. Gemini backend verified against the live API. GitHub integration **now verified live end to end** — the only thing not yet seen is an actual `NEEDS_UPDATE`/`UP_TO_DATE` verdict, blocked purely on Gemini free-tier daily quota (resets automatically; no code work needed).
 
 This file is the handoff record. Read it top to bottom to know exactly what
 exists, what has actually been proven, and where to pick up.
@@ -95,9 +95,28 @@ The distinction between "tested" and "proven live" matters here.
 | Code Delta Parser on real diffs | ✅ Verified | Correctly isolated `REDIS_URL` from a real diff |
 | **Gemini backend, live API** | ✅ **3/3 executed scenarios correct** | See table below |
 | Anthropic backend, live API | ❌ **Never run** | Account has no API credits (§6) |
-| GitHub App auth (JWT → token) | ❌ **Never run live** | Unit-tested against mocks only |
-| Real webhook delivery | ❌ **Never run** | No App created yet |
-| Real PR comment / Check Run | ❌ **Never run** | No App created yet |
+| GitHub App auth (JWT → token) | ✅ **Verified live** | Real installation token minted (`POST .../access_tokens` → 201), 2026-08-20 |
+| Real webhook delivery | ✅ **Verified live** | GitHub → Cloudflare tunnel → local `uvicorn`, signature verified, 200 back to GitHub |
+| Real PR comment / Check Run | ⚠️ **Partially verified** | Check Run created + updated live (201, then 200 PATCH). No comment yet — blocked on the LLM call itself, not the GitHub plumbing (see below) |
+
+### Live GitHub round-trip, 2026-08-20
+
+Ran the full pipeline against a real PR — [kaamipresents/readme-realist#1](https://github.com/kaamipresents/readme-realist/pull/1), which adds an undocumented
+`REDIS_URL = os.environ["REDIS_URL"]` to `app/worker.py` without touching the
+README. Log trace confirmed every stage up to the model call:
+
+1. ✅ Webhook received, `X-Hub-Signature-256` verified
+2. ✅ Installation token minted
+3. ✅ Check Run created (`201`)
+4. ✅ Diff fetched + analysed — 1 file, 1 signal (`REDIS_URL`) correctly detected
+5. ✅ README fetched (12,207 chars)
+6. ❌ Gemini call → `429 RESOURCE_EXHAUSTED` — free tier's `generate_content_free_tier_requests` daily cap (`quotaValue: 20`) exhausted by cumulative testing
+7. ✅ Failure handled exactly per design: Check Run PATCHed to `conclusion: neutral`, title *"Documentation check could not complete"*, error detail in the summary. **Zero PR comments posted** — correct, since a comment implies a verdict was reached, and none was.
+
+**Conclusion: the entire GitHub-facing pipeline is proven correct**, including the
+failure path. The one thing not yet observed live is a *successful* model call
+producing an actual `NEEDS_UPDATE`/`UP_TO_DATE` verdict — purely a quota
+question, not a code question.
 
 ### Live Gemini results (`gemini-3.7-flash`, 2026-08-19)
 
@@ -131,25 +150,57 @@ reintroduced.
 Also: automatic function calling was on by default (we send no tools), emitting
 an SDK warning per call — now explicitly disabled.
 
+**Not an app bug, but a gotcha worth recording:** the `REDIS_URL` test fixture
+added to `app/worker.py` for live PR testing (§ below) originally read
+`os.environ["REDIS_URL"]` at module import time, expecting `.env` to supply
+it. It doesn't — `pydantic-settings`'s `env_file=".env"` loads values into the
+`Settings` object only, it never touches `os.environ`. Anything reading
+`os.environ` directly (as this test fixture deliberately does, to simulate a
+real hard dependency) needs the var **exported in the actual shell**
+(`$env:REDIS_URL = "..."` in PowerShell) before `uvicorn` starts. First
+attempt also placed the import above the module docstring / `from __future__
+import annotations`, which must be the file's first statement — caused a
+`SyntaxError` on boot. Both fixed in commit `7d68289`.
+
 ---
 
 ## 6. Environment state
 
 ### Local
 
-- Repo: `D:\Tech and Development\Coding\readme_realist` — **not a git repo yet** (no `git init`)
-- venv: `.venv/` (Python 3.11.9). Interpreter: `.venv/Scripts/python.exe`
-- Installed: `-e ".[dev]"` plus `google-genai` 2.18.1, `anthropic` 0.122.0
+- Repo: `D:\Coding\readme-realist` — **git-tracked**, pushed to GitHub at
+  [kaamipresents/readme-realist](https://github.com/kaamipresents/readme-realist)
+  (`main` + a `testing` branch used for the live proving PR, #1)
+- venv: `.venv/` (Python 3.13.5). Interpreter: `.venv/Scripts/python.exe`
+- Installed: `-e ".[dev]"` — clean install, 298/298 tests pass
 
 ### `.env` (git-ignored — never commit; values not recorded here)
 
 | Key | State |
 | --- | --- |
-| `GEMINI_API_KEY` | ✅ Present and working |
+| `GEMINI_API_KEY` | ✅ Present and working (subject to free-tier daily quota — see live round-trip above) |
 | `ANTHROPIC_API_KEY` | ⚠️ Present but **unusable** — account has zero API credits |
+| `GITHUB_APP_ID` | ✅ Set, verified live |
+| `GITHUB_WEBHOOK_SECRET` | ✅ Set, verified live (signature checks pass) |
+| `GITHUB_PRIVATE_KEY_PATH` | ✅ Set → `./secrets/readme-realist.*.private-key.pem`, verified live (token minting succeeds) |
 
-Everything else runs on defaults. `GITHUB_*` values are **not yet set** — the
-app cannot boot for real until they are.
+Everything else runs on defaults.
+
+### GitHub App
+
+- Name: `readme-realist`, installed on `kaamipresents/readme-realist` only
+- Permissions: Contents (read), Pull requests (read+write), Checks (read+write), Metadata (read)
+- Subscribed to `Pull request` only
+- **Webhook URL changes every session** — local dev uses `cloudflared`'s free
+  "quick tunnel," which mints a new random `*.trycloudflare.com` URL every
+  time it's restarted. **Before testing again, you must re-run `cloudflared
+  tunnel --url http://localhost:8000` and paste the new URL into the App's
+  General → Webhook URL field**, or deliveries will fail with no server to
+  reach.
+- `cloudflared` is installed via `winget` at
+  `C:\Program Files (x86)\cloudflared\cloudflared.exe`. A PowerShell window
+  opened *before* the winget install won't have it on `PATH` — either open a
+  fresh terminal, or invoke the full path directly.
 
 > **Note:** a Claude.ai Pro/Max subscription does *not* cover API usage. The
 > Anthropic API needs credits purchased separately on the Console. This is why
@@ -172,58 +223,57 @@ makes realistic usage cents per month.
 
 ## 7. Where to continue
 
-### Immediate decision point
+**GitHub App setup is done.** The App exists, is installed, and the full
+webhook → auth → diff → docs → (failure-handling) pipeline is proven live
+against real PR #1. Nothing left to configure — the only remaining step is
+seeing one *successful* model call.
 
-The user was asked to choose between:
+### Immediate next step, in order
 
-- **(a)** Move on to GitHub App setup and wire a real PR end to end ← *recommended*
-- **(b)** Enable Gemini billing first, then re-run scenario C and a wider accuracy set
-
-Recommendation was **(a)**: the model's reasoning is proven; the untested piece
-is now the GitHub plumbing, not the intelligence.
-
-### Path (a) — GitHub App setup, in order
-
-1. **Create the GitHub App** — Settings → Developer settings → GitHub Apps → New.
-   - Permissions: Contents `read`, Pull requests `read+write`, Checks `read+write`, Metadata `read`
-   - Subscribe to **Pull request** only
-2. **Generate + download the private key** (`.pem`), save outside git or in `./secrets/`
-3. **Set a webhook secret:** `python -c "import secrets; print(secrets.token_hex(32))"`
-4. **Install the App** on a throwaway test repo
-5. **Fill `.env`:** `GITHUB_APP_ID`, `GITHUB_WEBHOOK_SECRET`, `GITHUB_PRIVATE_KEY_PATH`
-6. **Start a tunnel** and set it as the App's Webhook URL:
-   `cloudflared tunnel --url http://localhost:8000` (or ngrok / smee.io)
-   > **Not `gh webhook forward`** — it creates a *repository* webhook, whose
-   > payload has no `installation` object, and the app rejects those with a 400.
-   > Deliveries must come from the App itself.
-7. **Run:** `uvicorn app.main:app --reload --port 8000`
-8. **Open the proving PR** — in the test repo, ensure `README.md` documents some
-   env vars, then open a PR adding one *without* touching the README:
-   ```python
-   REDIS_URL = os.environ["REDIS_URL"]
+1. **Confirm Gemini quota has reset** (free tier is daily; check
+   [ai.dev/rate-limit](https://ai.dev/rate-limit) if unsure), or enable
+   pay-as-you-go billing at [aistudio.google.com](https://aistudio.google.com)
+   if you don't want to wait.
+2. **Start the server**, with the test fixture's env var exported first:
+   ```powershell
+   $env:REDIS_URL = "redis://localhost:6379"
+   uvicorn app.main:app --reload --port 8000
    ```
-   - Expect: `NEEDS_UPDATE` comment naming `REDIS_URL` + suggested snippet + neutral Check Run
-   - Then push a commit adding it to the README → the **same** comment should
-     rewrite itself to "up to date" and the check should go green
-   - A whitespace-only PR should go green with **zero** LLM spend
-
-**Faster iteration:** the App's **Advanced → Recent Deliveries** page shows the
-exact payload and our response, and has a **Redeliver** button — re-runs a
-review without pushing.
+3. **Start a fresh tunnel** (yesterday's URL is dead):
+   ```powershell
+   cloudflared tunnel --url http://localhost:8000
+   ```
+4. **Update the Webhook URL** on the App's General settings page to the new
+   tunnel URL + `/webhooks/github`, and save.
+5. **Redeliver**, don't repush — on the App's **Advanced → Recent Deliveries**,
+   find the latest `pull_request` (`synchronize`) delivery on PR #1 and click
+   **Redeliver**. No need for a new commit.
+6. **Check PR #1** — [kaamipresents/readme-realist#1](https://github.com/kaamipresents/readme-realist/pull/1).
+   Expect a `NEEDS_UPDATE` comment naming `REDIS_URL`, a suggested README
+   snippet, and a neutral Check Run.
+7. **Prove the resolve path** — push a commit on the `testing` branch adding
+   `REDIS_URL` to `README.md`. The **same** PR comment should rewrite itself
+   to "up to date," and the Check Run should go green.
+8. *(Optional)* Push a whitespace-only commit and confirm it resolves locally
+   with **zero** LLM calls in the log — the noise-only skip path.
 
 ### Deferred / optional
 
-- [ ] Scenario C accuracy check (blocked on Gemini quota)
+- [ ] Scenario C accuracy check — port-change detection (blocked on Gemini quota historically; may now be moot given today's broader live proof)
 - [ ] Anthropic backend live verification (blocked on API credits)
-- [ ] `git init` + first commit — repo is currently untracked
 - [ ] **Dry-run CLI** (`python -m app.cli review <owner/repo> <pr>`) — evaluate real
       public PRs with no App, webhook, or tunnel. Reuses the existing parser,
       evaluator, and prompts; only auth and the output sink are new. Offered
       but not built.
 - [ ] Deployment — `Dockerfile` is ready (non-root, healthcheck, `--proxy-headers`).
-      Target platform not chosen.
+      Target platform not chosen. Would also remove the "tunnel URL changes
+      every restart" friction from local dev.
 - [ ] Post-launch metrics — `TokenUsage` already emits per-review cost and
       cache-hit data as the foundation.
+- [ ] Clean up the `REDIS_URL` test fixture in `app/worker.py` once the live
+      verdict is captured — it's a deliberate test artifact, not real code,
+      and should probably be reverted (or kept intentionally as a running
+      example — user's call) once its job is done.
 
 ---
 
@@ -250,6 +300,28 @@ macOS/Linux `.venv/bin/python`.
 
 ```bash
 .venv/Scripts/python.exe -m uvicorn app.main:app --reload --port 8000
+```
+
+Live-testing against a real PR also needs (PowerShell, before starting
+`uvicorn` — the `app/worker.py` test fixture reads it via `os.environ`
+directly, which `.env` does not populate):
+
+```powershell
+$env:REDIS_URL = "redis://localhost:6379"
+```
+
+Tunnel (new random URL every restart — re-paste into the App's Webhook URL
+each time):
+
+```powershell
+cloudflared tunnel --url http://localhost:8000
+```
+
+If `cloudflared` isn't found in a given terminal, either open a fresh one
+(picks up `winget`'s PATH update) or call it directly:
+
+```powershell
+& "C:\Program Files (x86)\cloudflared\cloudflared.exe" tunnel --url http://localhost:8000
 ```
 
 ### Switching the LLM backend
