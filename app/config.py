@@ -108,6 +108,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     log_format: LogFormat = LogFormat.JSON
     max_concurrent_reviews: int = Field(default=4, ge=1, le=64)
+    metrics_port: int = Field(default=9090, ge=1024, le=65535)
 
     # ------------------------------------------------------------------ #
     # Validators
