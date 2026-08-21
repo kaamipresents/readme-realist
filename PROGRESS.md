@@ -1,7 +1,38 @@
 # ReadMe Realist — Progress & Resume Notes
 
-**Last updated:** 2026-08-20
-**Status:** Core application complete and offline-verified. Gemini backend verified against the live API. GitHub integration **now verified live end to end** — the only thing not yet seen is an actual `NEEDS_UPDATE`/`UP_TO_DATE` verdict, blocked purely on Gemini free-tier daily quota (resets automatically; no code work needed).
+**Last updated:** 2026-08-21
+**Status:** Core application complete and offline-verified. Gemini backend fully verified against the live API — all four accuracy scenarios (A/B/C/D) now confirmed correct. GitHub integration verified live end to end through every stage except a successful model call, which was the quota-blocked piece and is now closed out.
+
+### Session update, 2026-08-21
+
+This session ran on a **different machine/checkout** than the one that did the
+2026-08-20 GitHub round-trip (`D:\Tech and Development\Coding\readme_realist`,
+not `D:\Coding\readme-realist`). `.env` here only carries `GEMINI_API_KEY` /
+`ANTHROPIC_API_KEY` — no `secrets/*.pem`, `GITHUB_APP_ID`, or
+`GITHUB_WEBHOOK_SECRET`, and `cloudflared` is not confirmed installed here. The
+live GitHub App round-trip (webhook → tunnel → PR comment) is **not
+re-runnable from this environment** without those credentials being supplied
+again; that piece of §7's checklist is unchanged from 2026-08-20, not
+re-verified or regressed.
+
+What *was* done this session:
+
+1. **Fixed a real bug**: `app/worker.py` still had the deliberate
+   `REDIS_URL = os.environ["REDIS_URL"]` test fixture from the live PR test.
+   With no `REDIS_URL` exported, this broke `import app.main` outright —
+   `pytest -q` failed to even collect 2 of the test files. Removed it (its
+   job was done; see the commit history for the original PR-test rationale).
+   The offline suite is no longer broken-by-default for a fresh checkout.
+2. **Re-verified offline**: `pytest -q` → 298/298 passing; `--cov=app` → 97%,
+   matching the prior figure exactly; `ruff check` / `ruff format --check` /
+   `mypy app tests` → all clean.
+3. **Closed Scenario C live** (the one outstanding accuracy check): built a
+   standalone script hitting `GeminiDriftEvaluator` directly with a synthetic
+   port-change diff (`8000` → `9000`) against a README documenting port 8000.
+   Result: `NEEDS_UPDATE`, correctly citing the port change, with a
+   paste-ready suggested edit. Gemini free-tier quota had reset (new UTC day)
+   so this ran without issue. **All four scenarios (A/B/C/D) are now
+   confirmed correct** — see the results table below.
 
 This file is the handoff record. Read it top to bottom to know exactly what
 exists, what has actually been proven, and where to pick up.
@@ -125,13 +156,16 @@ question, not a code question.
 | A | Env var added, undocumented | `NEEDS_UPDATE` | `NEEDS_UPDATE` | ✅ |
 | B | Env var added, already documented | `UP_TO_DATE` | `UP_TO_DATE` | ✅ |
 | D | Internal refactor, no surface change | `UP_TO_DATE` | `UP_TO_DATE` | ✅ |
-| C | Default port `8000`→`9000` vs README | `NEEDS_UPDATE` | — | ⏳ blocked on quota |
+| C | Default port `8000`→`9000` vs README | `NEEDS_UPDATE` | `NEEDS_UPDATE` | ✅ (2026-08-21) |
 
 B and D are the important ones: they prove it does **not** just fire on
 everything, which is what would make it useless as a gate. Scenario A produced
 a paste-ready edit that slotted into the existing bullet list correctly.
+Scenario C (closed 2026-08-21, via a standalone script calling
+`GeminiDriftEvaluator` directly — not through the GitHub pipeline) correctly
+named the port change and produced a matching suggested edit.
 
-**Scenario C is the one outstanding accuracy check.**
+**All four scenarios now pass. No outstanding accuracy checks remain.**
 
 ---
 
@@ -259,8 +293,13 @@ seeing one *successful* model call.
 
 ### Deferred / optional
 
-- [ ] Scenario C accuracy check — port-change detection (blocked on Gemini quota historically; may now be moot given today's broader live proof)
+- [x] Scenario C accuracy check — port-change detection. Closed 2026-08-21, see §4.
 - [ ] Anthropic backend live verification (blocked on API credits)
+- [ ] Re-run the live GitHub round-trip from *this* checkout — needs
+      `GITHUB_APP_ID`, `GITHUB_WEBHOOK_SECRET`, and the App's private key
+      (`secrets/*.pem`) put back into `.env`/`secrets/`, plus `cloudflared`
+      confirmed on this machine. Not a code gap — purely local secrets/tooling
+      that didn't carry over from the other checkout.
 - [ ] **Dry-run CLI** (`python -m app.cli review <owner/repo> <pr>`) — evaluate real
       public PRs with no App, webhook, or tunnel. Reuses the existing parser,
       evaluator, and prompts; only auth and the output sink are new. Offered
