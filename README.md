@@ -1,5 +1,9 @@
 # ReadMe Realist
 
+[![CI](https://github.com/kaamipresents/readme-realist/actions/workflows/ci.yml/badge.svg)](https://github.com/kaamipresents/readme-realist/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
+
 An automated gatekeeper that stops documentation drift before it merges.
 
 ReadMe Realist watches your pull requests. When a diff changes something a
@@ -312,4 +316,4 @@ stateless ASGI service, so anything that runs a container works.
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE).
