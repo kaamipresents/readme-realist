@@ -1,0 +1,116 @@
+name: "ReadMe Realist"
+description: "Catch documentation drift in pull requests: check the diff against your README and docs, and report on the PR."
+author: "Kamran Mushtaq"
+
+branding:
+  icon: "book-open"
+  color: "purple"
+
+inputs:
+  github-token:
+    description: >-
+      Token used to read the pull request and publish feedback. The default
+      workflow token is enough; the job needs `pull-requests: write` and
+      `checks: write` permissions.
+    required: false
+    default: ${{ github.token }}
+
+  llm-provider:
+    description: "Model backend: `gemini` or `anthropic`."
+    required: false
+    default: "gemini"
+
+  gemini-api-key:
+    description: "Required when llm-provider is `gemini`. Get one at https://aistudio.google.com/apikey"
+    required: false
+    default: ""
+
+  anthropic-api-key:
+    description: "Required when llm-provider is `anthropic`."
+    required: false
+    default: ""
+
+  docs-globs:
+    description: "Comma-separated documentation globs to check against."
+    required: false
+    default: "README.md,docs/**/*.md"
+
+  pull-request-number:
+    description: >-
+      PR to review. Defaults to the PR that triggered the workflow, so you can
+      normally leave this alone.
+    required: false
+    default: ""
+
+  fail-on-drift:
+    description: >-
+      Fail the step when documentation is stale. `false` by default so the
+      check reports without blocking merges until you have tuned it.
+    required: false
+    default: "false"
+
+  dry-run:
+    description: "Print the verdict without posting a comment or Check Run."
+    required: false
+    default: "false"
+
+  python-version:
+    description: "Python used to run the reviewer."
+    required: false
+    default: "3.12"
+
+outputs:
+  exit-code:
+    description: "0 = clean or skipped, 1 = drift found (with fail-on-drift), 2 = error."
+    value: ${{ steps.review.outputs.exit-code }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    # Installed from the action's own checkout, not from the consumer's
+    # workspace — `github.action_path` is where this action's code lives.
+    - name: Install ReadMe Realist
+      shell: bash
+      run: python -m pip install --quiet --disable-pip-version-check "${{ github.action_path }}"
+
+    - name: Resolve pull request number
+      id: pr
+      shell: bash
+      run: |
+        number="${{ inputs.pull-request-number }}"
+        if [ -z "$number" ]; then
+          number="${{ github.event.pull_request.number }}"
+        fi
+        if [ -z "$number" ]; then
+          echo "::error::No pull request number. Trigger this action on a \
+        pull_request event, or set the pull-request-number input."
+          exit 1
+        fi
+        echo "number=$number" >> "$GITHUB_OUTPUT"
+
+    - name: Review documentation
+      id: review
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        LLM_PROVIDER: ${{ inputs.llm-provider }}
+        GEMINI_API_KEY: ${{ inputs.gemini-api-key }}
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
+        LOG_FORMAT: text
+      run: |
+        args=(review "${{ github.repository }}" "${{ steps.pr.outputs.number }}")
+        args+=(--docs "${{ inputs.docs-globs }}")
+        [ "${{ inputs.fail-on-drift }}" = "true" ] && args+=(--fail-on-drift)
+        [ "${{ inputs.dry-run }}" = "true" ] && args+=(--dry-run)
+
+        set +e
+        python -m app.cli "${args[@]}"
+        code=$?
+        set -e
+        echo "exit-code=$code" >> "$GITHUB_OUTPUT"
+        exit $code

@@ -13,7 +13,74 @@ documentation against that change and reports back on the PR.
 
 ```
 [ GitHub PR ] → [ Webhook server ] → [ Code Delta Parser ] → [ LLM ] → [ PR comment + Check Run ]
+                        or
+                  [ GitHub Action ] ↗
 ```
+
+---
+
+## Quick start — as a GitHub Action
+
+The fastest way to use this. No server, no webhook, no GitHub App, no tunnel.
+Add one workflow file and one secret.
+
+```yaml
+# .github/workflows/readme-realist.yml
+name: Documentation drift
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+jobs:
+  readme-realist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: kaamipresents/readme-realist@v1
+        with:
+          gemini-api-key: ${{ secrets.GEMINI_API_KEY }}
+```
+
+Then add `GEMINI_API_KEY` under **Settings → Secrets and variables → Actions**
+([get a key](https://aistudio.google.com/apikey); the free tier is enough to
+try it). That's the whole setup — a copy-paste version with every option
+commented lives in [`examples/readme-realist.yml`](examples/readme-realist.yml).
+
+The runner's built-in `GITHUB_TOKEN` covers GitHub access, and each repository
+uses its own model key, so there is nothing to host and nothing to pay for
+beyond your own inference.
+
+### Action inputs
+
+| Input | Default | Notes |
+| --- | --- | --- |
+| `gemini-api-key` | — | Required when `llm-provider` is `gemini` |
+| `anthropic-api-key` | — | Required when `llm-provider` is `anthropic` |
+| `llm-provider` | `gemini` | `gemini` or `anthropic` |
+| `docs-globs` | `README.md,docs/**/*.md` | What the diff is checked against |
+| `fail-on-drift` | `false` | `true` makes stale docs fail the job |
+| `dry-run` | `false` | Print the verdict, post nothing |
+| `github-token` | `${{ github.token }}` | Needs `pull-requests: write` + `checks: write` |
+| `pull-request-number` | the triggering PR | Only needed outside `pull_request` events |
+| `python-version` | `3.12` | |
+
+### Or from the command line
+
+The same engine, same pipeline, same verdict — useful for trying the tool
+against a real PR before wiring anything up:
+
+```bash
+GITHUB_TOKEN=... GEMINI_API_KEY=... python -m app.cli review owner/repo 42 --dry-run
+```
+
+`--dry-run` writes nothing to the pull request. Drop it to publish the comment
+and Check Run. Exit codes: `0` clean or skipped, `1` drift found (only with
+`--fail-on-drift`), `2` the review could not complete.
 
 ---
 
@@ -36,6 +103,7 @@ flagged PR comes back clean, that comment is rewritten to say so.
 ```
 app/
 ├── main.py                 FastAPI factory, lifespan, dependency wiring
+├── cli.py                  `python -m app.cli` — the CLI / GitHub Action path
 ├── config.py               pydantic-settings; fails fast on a malformed key
 ├── logging_config.py       JSON logs + secret redaction filter
 ├── worker.py               Background execution, bounded + per-PR deduplicated
@@ -49,7 +117,7 @@ app/
 │   └── diff.py             ◆ Code Delta Parser
 ├── services/
 │   ├── github/
-│   │   ├── auth.py         App JWT → cached installation tokens
+│   │   ├── auth.py         App JWT → cached installation tokens; static-token auth
 │   │   ├── client.py       REST calls, retry/backoff, rate-limit aware
 │   │   └── feedback.py     ◆ Feedback Orchestrator
 │   ├── llm/
@@ -162,7 +230,11 @@ rejected, because a usable verdict beats a failed review.
 
 ---
 
-## Setup
+## Setup — as a GitHub App
+
+The Action above needs none of this. Follow this path when you want the App
+shape instead: zero config in each repository, one installation covering many
+repos, and reviews that run without consuming the repo's Actions minutes.
 
 ### 1. Create the GitHub App
 
@@ -254,9 +326,11 @@ No credentials required.
 
 | Variable | Default | Notes |
 | --- | --- | --- |
-| `GITHUB_APP_ID` | — | Required |
-| `GITHUB_WEBHOOK_SECRET` | — | Required, ≥16 chars |
-| `GITHUB_PRIVATE_KEY` / `GITHUB_PRIVATE_KEY_PATH` | — | Exactly one required |
+| `GITHUB_AUTH_MODE` | `app` | `app` for the webhook server, `token` for the CLI / Action. Decides which credentials below are required |
+| `GITHUB_APP_ID` | — | Required in `app` mode |
+| `GITHUB_WEBHOOK_SECRET` | — | Required in `app` mode, ≥16 chars |
+| `GITHUB_PRIVATE_KEY` / `GITHUB_PRIVATE_KEY_PATH` | — | Exactly one required in `app` mode |
+| `GITHUB_TOKEN` | — | Required in `token` mode; supplied automatically inside Actions |
 | `GITHUB_API_BASE_URL` | `https://api.github.com` | Set for GitHub Enterprise |
 | `LLM_PROVIDER` | `gemini` | `gemini` or `anthropic` |
 | `GEMINI_API_KEY` | — | Required when provider is `gemini` |

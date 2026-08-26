@@ -4,6 +4,38 @@ This guide walks you through configuring, running, and testing **ReadMe Realist*
 
 ---
 
+## Start here: do you actually need any of this?
+
+There are two ways to run ReadMe Realist, and most people want the first one.
+
+| | **GitHub Action** | **GitHub App** |
+| --- | --- | --- |
+| Setup | One workflow file + one secret | Register an App, host a server, expose a webhook |
+| Time | ~2 minutes | ~20 minutes, plus ongoing hosting |
+| Runs on | GitHub's runners | A server you operate |
+| Covers | One repository per workflow file | Every repo in an installation |
+| Costs you | Nothing beyond your own model usage | Hosting |
+
+**If you just want the tool working on a repository, use the Action.** Copy
+[`examples/readme-realist.yml`](examples/readme-realist.yml) to
+`.github/workflows/readme-realist.yml`, add a `GEMINI_API_KEY` repository
+secret, and you are done — skip the rest of this guide.
+
+Everything below is the App path: worth it when you want to cover many
+repositories from one installation, or want reviews that do not consume each
+repo's Actions minutes.
+
+### Trying it first, without installing anything
+
+The CLI runs the identical pipeline against a real PR and, with `--dry-run`,
+writes nothing back:
+
+```bash
+GITHUB_TOKEN=... GEMINI_API_KEY=... python -m app.cli review owner/repo 42 --dry-run
+```
+
+---
+
 ## Table of Contents
 1. [Prerequisites](#1-prerequisites)
 2. [Step 1: Create & Configure a GitHub App](#step-1-create--configure-a-github-app)

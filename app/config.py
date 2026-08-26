@@ -38,6 +38,19 @@ class LLMProvider(StrEnum):
     GEMINI = "gemini"
 
 
+class GitHubAuthMode(StrEnum):
+    """How the process proves who it is to GitHub.
+
+    `APP` is the webhook server: sign a JWT with the App private key, exchange
+    it for a per-installation token. `TOKEN` is the CLI and the GitHub Action,
+    where the runner already holds a usable token and there is no App, no
+    installation, and no webhook to verify.
+    """
+
+    APP = "app"
+    TOKEN = "token"
+
+
 CheckConclusion = Literal["neutral", "failure", "success"]
 
 
@@ -51,11 +64,24 @@ class Settings(BaseSettings):
         case_sensitive=False,
     )
 
-    # --- GitHub App ---------------------------------------------------------
-    github_app_id: str = Field(min_length=1)
-    github_webhook_secret: SecretStr
+    # --- GitHub credentials -------------------------------------------------
+    # Which set of credentials below is mandatory depends on `github_auth_mode`;
+    # see `_require_credentials_for_auth_mode`. Everything is optional at the
+    # field level so that neither deployment shape has to invent values it will
+    # never use.
+    github_auth_mode: GitHubAuthMode = GitHubAuthMode.APP
+
+    # App mode (the webhook server)
+    github_app_id: str | None = Field(default=None, min_length=1)
+    github_webhook_secret: SecretStr | None = None
     github_private_key: SecretStr | None = None
     github_private_key_path: Path | None = None
+
+    # Token mode (the CLI and the GitHub Action). In a workflow this is the
+    # `GITHUB_TOKEN` the runner injects; locally it can be any PAT with
+    # `repo` scope.
+    github_token: SecretStr | None = None
+
     github_api_base_url: str = "https://api.github.com"
     github_timeout_seconds: float = Field(default=30.0, gt=0)
     github_max_retries: int = Field(default=3, ge=0, le=10)
@@ -147,13 +173,43 @@ class Settings(BaseSettings):
 
     @field_validator("github_webhook_secret")
     @classmethod
-    def _webhook_secret_is_substantial(cls, value: SecretStr) -> SecretStr:
+    def _webhook_secret_is_substantial(cls, value: SecretStr | None) -> SecretStr | None:
+        if value is None:
+            return None
         if len(value.get_secret_value()) < 16:
             raise ValueError(
                 "github_webhook_secret must be at least 16 characters; "
                 'generate one with `python -c "import secrets; print(secrets.token_hex(32))"`'
             )
         return value
+
+    @model_validator(mode="after")
+    def _require_credentials_for_auth_mode(self) -> Settings:
+        """Each mode demands its own credentials and none of the other's.
+
+        Runs before `_resolve_private_key` so that a token-mode process is
+        never asked for a PEM it has no way to supply.
+        """
+        if self.github_auth_mode is GitHubAuthMode.TOKEN:
+            if self.github_token is None:
+                raise ValueError("GITHUB_TOKEN is required when GITHUB_AUTH_MODE=token")
+            return self
+
+        missing = [
+            name
+            for name, value in (
+                ("github_app_id", self.github_app_id),
+                ("github_webhook_secret", self.github_webhook_secret),
+            )
+            if value is None
+        ]
+        if missing:
+            raise ValueError(
+                f"{', '.join(missing)} is required when GITHUB_AUTH_MODE=app "
+                "(the default). Set GITHUB_AUTH_MODE=token for the CLI or "
+                "GitHub Action, which needs no App credentials."
+            )
+        return self
 
     @model_validator(mode="after")
     def _require_key_for_selected_provider(self) -> Settings:
@@ -175,6 +231,10 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def _resolve_private_key(self) -> Settings:
         """Exactly one of the inline key / key path must be supplied and usable."""
+        if self.github_auth_mode is not GitHubAuthMode.APP:
+            # Token mode never signs a JWT, so there is no key to resolve.
+            return self
+
         inline = self.github_private_key
         path = self.github_private_key_path
 
@@ -209,23 +269,36 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------------ #
 
     @property
+    def app_id(self) -> str:
+        assert self.github_app_id is not None  # guaranteed in app mode
+        return self.github_app_id
+
+    @property
     def private_key_pem(self) -> str:
         assert self.github_private_key is not None  # guaranteed by _resolve_private_key
         return self.github_private_key.get_secret_value()
 
     @property
     def webhook_secret(self) -> str:
+        assert self.github_webhook_secret is not None  # guaranteed in app mode
         return self.github_webhook_secret.get_secret_value()
+
+    @property
+    def access_token(self) -> str:
+        assert self.github_token is not None  # guaranteed in token mode
+        return self.github_token.get_secret_value()
 
     def secret_values(self) -> tuple[str, ...]:
         """Every literal secret, for the log redaction filter.
 
-        Both provider keys are listed regardless of which one is active — a key
-        that is configured but unused must still never reach a log sink.
+        Every credential is listed regardless of which mode or provider is
+        active — a secret that is configured but unused must still never reach
+        a log sink.
         """
         candidates = (
-            self.webhook_secret,
-            self.private_key_pem,
+            self.github_webhook_secret.get_secret_value() if self.github_webhook_secret else None,
+            self.github_private_key.get_secret_value() if self.github_private_key else None,
+            self.github_token.get_secret_value() if self.github_token else None,
             self.anthropic_api_key.get_secret_value() if self.anthropic_api_key else None,
             self.gemini_api_key.get_secret_value() if self.gemini_api_key else None,
         )
