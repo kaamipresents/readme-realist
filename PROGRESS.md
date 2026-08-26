@@ -40,9 +40,9 @@ graph TD
     class M4 done;
     class M5 done;
     class M6 active;
-    class P1 active;
+    class P1 done;
     class P2 active;
-    class P3 todo;
+    class P3 active;
     class P4 todo;
 ```
 
@@ -51,9 +51,9 @@ graph TD
 ## 1. Executive Summary & Current Status
 
 - **Project:** ReadMe Realist (Automated documentation drift gatekeeper)
-- **Current Active Milestone:** Phase 1: Shareable — License, CI & Public Repo (Milestone 6 remains open pending stable infrastructure; see Phase 3)
+- **Current Active Milestone:** Phase 3: Hosted — Permanent Deployment & Public App (Phase 1 complete; Phase 2 code and live verification complete, pending only the owner's Marketplace opt-in; Milestone 6 remains open pending stable infrastructure)
 - **Last Updated:** 2026-08-26
-- **Overall Status:** Core application complete and fully verified end-to-end live against GitHub. Gemini backend (`gemini-2.5-flash` / `gemini-3.7-flash`) evaluated live PR diffs and successfully posted structured `NEEDS_UPDATE` verdict comments and updated Check Runs on GitHub PR #3. Offline suite re-verified 2026-08-26: **298/298 passing**. Focus has shifted from building the engine to distributing it — see the Distribution Roadmap below.
+- **Overall Status:** Core application complete and fully verified end-to-end live against GitHub. Gemini backend (`gemini-2.5-flash` / `gemini-3.7-flash`) evaluated live PR diffs and successfully posted structured `NEEDS_UPDATE` verdict comments and updated Check Runs on GitHub PR #3. Offline suite re-verified 2026-08-26: **330/330 passing**. The repository is now **public** with a **v1.0.0 release** and a moving **v1** tag, and the GitHub Action has been live-verified end to end on a real runner. Focus has shifted from building the engine to distributing it — see the Distribution Roadmap below.
 
 ---
 
@@ -126,7 +126,7 @@ to an install action.
 - [x] Add `.github/workflows/ci.yml` running `pytest` (3.11/3.12/3.13 matrix), `ruff check`, `ruff format --check`, and `mypy`
 - [x] Add CI, licence, and Python-version badges to `README.md`
 - [x] Confirm no secrets (`.pem`, `.env`, live API keys) exist anywhere in git history — audited across all refs, clean
-- [ ] Flip repository visibility from `PRIVATE` to public — *deferred by owner decision 2026-08-26; history is verified clean, so this is unblocked whenever wanted*
+- [x] Flip repository visibility from `PRIVATE` to public — **done 2026-08-26**
 
 ### Phase 2: Frictionless — CLI & GitHub Action
 *Goal: adoption in ~2 minutes instead of ~20. Highest-leverage phase.*
@@ -141,7 +141,8 @@ to an install action.
 - [x] 32 new tests covering argument handling, context assembly, exit codes, and the dry-run no-write guarantee (330 total)
 - [x] Add `.github/workflows/dogfood.yml` — runs the Action against itself via `uses: ./`, scoped to `dogfood/**` branches or manual dispatch so it never competes with real PRs for Gemini quota; documents why `pull_request` (not `pull_request_target`) keeps `GEMINI_API_KEY` unreachable from a forked PR
 - [x] **Live-verified the Action on a real GitHub runner.** Opened a throwaway PR (#8) adding an undocumented `DIFF_CONTEXT_LINES` setting to `app/config.py`. The Action correctly posted a drift comment with the exact suggested README fix and a neutral Check Run, on the first real execution of the composite action. Test PR closed without merging; branch deleted.
-- [ ] **Blocked on Phase 1:** tag `v1` and publish to GitHub Marketplace — both require the repository to be public
+- [x] Tag and release `v1.0.0`, with a moving `v1` alias pointing at it — verified from the API that `uses: kaamipresents/readme-realist@v1` resolves to a real `action.yml` on the public repo
+- [ ] **Owner action required:** tick "Publish to GitHub Marketplace" on the [v1.0.0 release](https://github.com/kaamipresents/readme-realist/releases/tag/v1.0.0) — a GitHub UI step that means accepting Marketplace terms, left to the repository owner
 - [ ] Change the website CTA from `#setup` anchor to the copy-paste workflow snippet *(separate codebase; not in this repo)*
 
 **Note:** automatic `pull_request`-triggered workflow runs proved unreliable in this environment (silently skipped for PR #6 and PR #8) even though the workflow files and permissions were correct; `workflow_dispatch` reliably worked as a fallback both times. Worth keeping an eye on once the repo is public and real contributors' PRs depend on the trigger firing unattended.
@@ -186,7 +187,7 @@ cost and zero per-user inference cost.
 - **Gemini Free-Tier Quota:** Daily limit (`quotaValue: 20`) on free tier; daily reset or pay-as-you-go billing required for high-frequency testing.
 - **Anthropic API Credits:** Account currently has zero credits; Anthropic backend verified via mocks only.
 - **Dynamic Tunnel URL:** Local dev uses ephemeral `cloudflared` quick tunnels; Webhook URL must be updated in GitHub App settings upon tunnel restart. Resolved by Phase 3.
-- **Repository Visibility:** Repo is `PRIVATE` and carries no `LICENSE` file, so the MIT claim in `README.md` currently grants nothing. Resolved by Phase 1.
+- **Repository Visibility:** ~~Repo is `PRIVATE` and carries no `LICENSE` file~~ Resolved 2026-08-26 — `LICENSE` added and repo flipped to public.
 - **No Continuous Integration:** No `.github/workflows/` exists; the 298-test suite runs only on developer machines. Resolved by Phase 1.
 - **Self-Drift:** `metrics_port` in `app/config.py` is read by no code and documented in no file — the drift this project exists to catch, present in its own repo. Resolved by Phase 1.
 
@@ -194,7 +195,8 @@ cost and zero per-user inference cost.
 
 ## 5. Session & Execution History
 
-- **2026-08-26 (latest):** Live-verified the Action end to end on a real GitHub runner via a dogfood test PR (#8) — correctly caught an undocumented env var and published the drift comment + neutral Check Run. Test PR closed, branches cleaned up. Only Phase 1's repo-visibility item now stands between the Action and public availability.
+- **2026-08-26 (latest):** Repository flipped to public. Tagged and released `v1.0.0`, with a moving `v1` alias pointing at it; confirmed via the API that `uses: kaamipresents/readme-realist@v1` resolves to a real `action.yml`. Phase 1 is now fully complete. Phase 2 is complete except for the owner ticking "Publish to Marketplace" on the release. Began Phase 3.
+- **2026-08-26 (later):** Live-verified the Action end to end on a real GitHub runner via a dogfood test PR (#8) — correctly caught an undocumented env var and published the drift comment + neutral Check Run. Test PR closed, branches cleaned up. Only Phase 1's repo-visibility item now stands between the Action and public availability.
 - **2026-08-26 (later):** Phase 2 code complete. Added `GITHUB_AUTH_MODE`, `StaticTokenAuth`, `GitHubClient.fetch_pull_request`, `app/cli.py`, and a composite `action.yml`. Suite grew 298 → 330, all passing; ruff and mypy clean. Marketplace publication remains blocked on the repository being public.
 - **2026-08-26:** Audited project state against claims; re-ran offline suite (298/298 passing). Identified three distribution blockers (private repo, missing `LICENSE`, no CI) and one instance of self-drift (`metrics_port`). Replaced Milestone 7 with the four-phase Distribution Roadmap and began Phase 1.
 - **2026-08-22:** Established Autonomous Execution & Visual Progress Tracking Protocol. Initialized `progress.md` with visual Mermaid diagram and structured milestones.
