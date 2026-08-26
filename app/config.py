@@ -123,6 +123,7 @@ class Settings(BaseSettings):
     # --- Diff handling ------------------------------------------------------
     diff_max_chars: int = Field(default=120_000, ge=1_000)
     skip_llm_on_noise_only: bool = True
+    diff_context_lines: int = Field(default=3, ge=0, le=20)
 
     # --- Feedback behaviour -------------------------------------------------
     drift_check_conclusion: CheckConclusion = "neutral"
