@@ -139,8 +139,12 @@ to an install action.
 - [x] Add `examples/readme-realist.yml` as a copy-paste workflow
 - [x] Document the Action path in `README.md`, `GUIDE.md`, and `.env.example`
 - [x] 32 new tests covering argument handling, context assembly, exit codes, and the dry-run no-write guarantee (330 total)
+- [x] Add `.github/workflows/dogfood.yml` — runs the Action against itself via `uses: ./`, scoped to `dogfood/**` branches or manual dispatch so it never competes with real PRs for Gemini quota; documents why `pull_request` (not `pull_request_target`) keeps `GEMINI_API_KEY` unreachable from a forked PR
+- [x] **Live-verified the Action on a real GitHub runner.** Opened a throwaway PR (#8) adding an undocumented `DIFF_CONTEXT_LINES` setting to `app/config.py`. The Action correctly posted a drift comment with the exact suggested README fix and a neutral Check Run, on the first real execution of the composite action. Test PR closed without merging; branch deleted.
 - [ ] **Blocked on Phase 1:** tag `v1` and publish to GitHub Marketplace — both require the repository to be public
 - [ ] Change the website CTA from `#setup` anchor to the copy-paste workflow snippet *(separate codebase; not in this repo)*
+
+**Note:** automatic `pull_request`-triggered workflow runs proved unreliable in this environment (silently skipped for PR #6 and PR #8) even though the workflow files and permissions were correct; `workflow_dispatch` reliably worked as a fallback both times. Worth keeping an eye on once the repo is public and real contributors' PRs depend on the trigger firing unattended.
 
 *Why this ranks above Phase 3:* GitHub runs the container on its own runners
 and each user supplies their own model key, so this path carries zero hosting
@@ -190,6 +194,7 @@ cost and zero per-user inference cost.
 
 ## 5. Session & Execution History
 
+- **2026-08-26 (latest):** Live-verified the Action end to end on a real GitHub runner via a dogfood test PR (#8) — correctly caught an undocumented env var and published the drift comment + neutral Check Run. Test PR closed, branches cleaned up. Only Phase 1's repo-visibility item now stands between the Action and public availability.
 - **2026-08-26 (later):** Phase 2 code complete. Added `GITHUB_AUTH_MODE`, `StaticTokenAuth`, `GitHubClient.fetch_pull_request`, `app/cli.py`, and a composite `action.yml`. Suite grew 298 → 330, all passing; ruff and mypy clean. Marketplace publication remains blocked on the repository being public.
 - **2026-08-26:** Audited project state against claims; re-ran offline suite (298/298 passing). Identified three distribution blockers (private repo, missing `LICENSE`, no CI) and one instance of self-drift (`metrics_port`). Replaced Milestone 7 with the four-phase Distribution Roadmap and began Phase 1.
 - **2026-08-22:** Established Autonomous Execution & Visual Progress Tracking Protocol. Initialized `progress.md` with visual Mermaid diagram and structured milestones.
