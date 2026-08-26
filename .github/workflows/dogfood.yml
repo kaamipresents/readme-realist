@@ -6,13 +6,18 @@
 #
 # Scoped to branches named `dogfood/**` so it never fires on real project
 # PRs and never competes with them for the free-tier Gemini quota.
+#
+# Deliberately `pull_request`, never `pull_request_target`: the former runs
+# with a read-only token and no repository secrets when the PR comes from a
+# fork, so GEMINI_API_KEY cannot leak to a forked PR even by accident. Once
+# this repo is public that protection matters; today it is redundant with
+# the repo being private, but it costs nothing to have in place already.
 
 name: Dogfood the Action
 
 on:
   pull_request:
     branches: [main]
-    paths-ignore: []
   workflow_dispatch:
     inputs:
       pull_request_number:
