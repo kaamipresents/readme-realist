@@ -9,7 +9,12 @@ graph TD
     M4[Milestone 4: GitHub App Integration & Orchestration]
     M5[Milestone 5: Multi-Scenario Accuracy & Offline Verification]
     M6[Milestone 6: Live GitHub E2E Round-Trip]
-    M7[Milestone 7: CLI Dry-Run & Production Deployment]
+
+    %% Distribution Track
+    P1[Phase 1: Shareable — License, CI & Public Repo]
+    P2[Phase 2: Frictionless — CLI & GitHub Action]
+    P3[Phase 3: Hosted — Permanent Deployment & Public App]
+    P4[Phase 4: Product — Metering & Multi-Tenancy]
 
     %% Dependencies
     M1 --> M2
@@ -17,7 +22,10 @@ graph TD
     M3 --> M4
     M4 --> M5
     M5 --> M6
-    M6 --> M7
+    M6 --> P1
+    P1 --> P2
+    P2 --> P3
+    P3 --> P4
 
     %% Style Classes
     classDef done fill:#2ecc71,stroke:#27ae60,stroke-width:2px,color:#ffffff;
@@ -32,7 +40,10 @@ graph TD
     class M4 done;
     class M5 done;
     class M6 active;
-    class M7 todo;
+    class P1 active;
+    class P2 todo;
+    class P3 todo;
+    class P4 todo;
 ```
 
 ---
@@ -40,9 +51,9 @@ graph TD
 ## 1. Executive Summary & Current Status
 
 - **Project:** ReadMe Realist (Automated documentation drift gatekeeper)
-- **Current Active Milestone:** Milestone 6: Live GitHub E2E Round-Trip
-- **Last Updated:** 2026-08-22
-- **Overall Status:** Core application complete and fully verified end-to-end live against GitHub. Gemini backend (`gemini-2.5-flash` / `gemini-3.7-flash`) evaluated live PR diffs and successfully posted structured `NEEDS_UPDATE` verdict comments and updated Check Runs on GitHub PR #3.
+- **Current Active Milestone:** Phase 1: Shareable — License, CI & Public Repo (Milestone 6 remains open pending stable infrastructure; see Phase 3)
+- **Last Updated:** 2026-08-26
+- **Overall Status:** Core application complete and fully verified end-to-end live against GitHub. Gemini backend (`gemini-2.5-flash` / `gemini-3.7-flash`) evaluated live PR diffs and successfully posted structured `NEEDS_UPDATE` verdict comments and updated Check Runs on GitHub PR #3. Offline suite re-verified 2026-08-26: **298/298 passing**. Focus has shifted from building the engine to distributing it — see the Distribution Roadmap below.
 
 ---
 
@@ -92,11 +103,58 @@ graph TD
 - [ ] Prove resolve path (commit updating `README.md` rewrites PR comment to up-to-date and green check)
 - [ ] Confirm whitespace-only push triggers zero-LLM noise skip path live
 
-### Milestone 7: CLI Dry-Run & Production Deployment
-- [ ] Build standalone dry-run CLI (`python -m app.cli review <owner/repo> <pr>`)
+---
+
+## 2a. Distribution Roadmap (Phases 1–4)
+
+Milestones 1–6 prove the engine works. The engine currently runs only on a
+developer laptop behind an ephemeral tunnel, so no third party can use it.
+These four phases each remove one reason for that. They supersede the former
+Milestone 7, whose items are absorbed into Phases 2 and 3.
+
+**Assets and how they connect:** the *engine* (this repo) is reached by GitHub
+only through a *GitHub App registration*, which needs a *permanently hosted*
+copy of the engine to point its webhook at. The *website*
+(readme2.kamipresents.com) is the shopfront and is currently documentation
+rather than distribution — its install CTA links to `#setup` instructions, not
+to an install action.
+
+### Phase 1: Shareable — License, CI & Public Repo
+*Goal: a stranger is permitted and able to obtain the code.*
+- [x] Add `LICENSE` file (MIT) — `README.md` claimed MIT but no grant file existed, so the code was presently all-rights-reserved by default
+- [x] Resolve dead `metrics_port` config — removed from `app/config.py`; nothing read it, and it appeared in neither `.env.example` nor the README config table (introduced by the Scenario C drift test, commit `ebe47a0`)
+- [x] Add `.github/workflows/ci.yml` running `pytest` (3.11/3.12/3.13 matrix), `ruff check`, `ruff format --check`, and `mypy`
+- [x] Add CI, licence, and Python-version badges to `README.md`
+- [x] Confirm no secrets (`.pem`, `.env`, live API keys) exist anywhere in git history — audited across all refs, clean
+- [ ] Flip repository visibility from `PRIVATE` to public — *deferred by owner decision 2026-08-26; history is verified clean, so this is unblocked whenever wanted*
+
+### Phase 2: Frictionless — CLI & GitHub Action
+*Goal: adoption in ~2 minutes instead of ~20. Highest-leverage phase.*
+- [ ] Build standalone CLI entry point (`python -m app.cli review <owner/repo> <pr>`) reusing `ReviewPipeline` unchanged, authenticating via a plain `GITHUB_TOKEN` rather than App JWT
+- [ ] Add root `action.yml` wrapping the existing `Dockerfile`
+- [ ] Publish to GitHub Marketplace (free; Actions require no review process)
+- [ ] Change the website CTA from `#setup` anchor to a copy-paste workflow snippet
+- [ ] Document the Action path in `README.md` and `GUIDE.md`
+
+*Why this ranks above Phase 3:* GitHub runs the container on its own runners
+and each user supplies their own model key, so this path carries zero hosting
+cost and zero per-user inference cost.
+
+### Phase 3: Hosted — Permanent Deployment & Public App
+*Goal: the zero-config App path becomes real for third parties.*
 - [ ] Verify production `Dockerfile` build and container healthcheck
-- [ ] Deploy to cloud container runtime with permanent webhook URL
-- [ ] Configure cost and latency telemetry monitoring
+- [ ] Deploy to a cloud container runtime with a permanent webhook URL (Cloud Run / Fly.io / Railway)
+- [ ] Repoint the GitHub App registration from the `cloudflared` tunnel to the permanent URL
+- [ ] Close out the three remaining Milestone 6 live-verification boxes on stable infrastructure
+- [ ] Flip the GitHub App registration from private to **Public** so third parties can install it
+- [ ] Publish the real install URL on the website
+
+### Phase 4: Product — Metering & Multi-Tenancy
+*Goal: only if Phases 1–3 demonstrate real demand. Deliberately deferred.*
+- [ ] Per-installation API key storage or centrally metered inference
+- [ ] Cost and latency telemetry monitoring
+- [ ] Quota enforcement and abuse controls
+- [ ] Billing and an installation dashboard
 
 ---
 
@@ -117,12 +175,16 @@ graph TD
 
 - **Gemini Free-Tier Quota:** Daily limit (`quotaValue: 20`) on free tier; daily reset or pay-as-you-go billing required for high-frequency testing.
 - **Anthropic API Credits:** Account currently has zero credits; Anthropic backend verified via mocks only.
-- **Dynamic Tunnel URL:** Local dev uses ephemeral `cloudflared` quick tunnels; Webhook URL must be updated in GitHub App settings upon tunnel restart.
+- **Dynamic Tunnel URL:** Local dev uses ephemeral `cloudflared` quick tunnels; Webhook URL must be updated in GitHub App settings upon tunnel restart. Resolved by Phase 3.
+- **Repository Visibility:** Repo is `PRIVATE` and carries no `LICENSE` file, so the MIT claim in `README.md` currently grants nothing. Resolved by Phase 1.
+- **No Continuous Integration:** No `.github/workflows/` exists; the 298-test suite runs only on developer machines. Resolved by Phase 1.
+- **Self-Drift:** `metrics_port` in `app/config.py` is read by no code and documented in no file — the drift this project exists to catch, present in its own repo. Resolved by Phase 1.
 
 ---
 
 ## 5. Session & Execution History
 
+- **2026-08-26:** Audited project state against claims; re-ran offline suite (298/298 passing). Identified three distribution blockers (private repo, missing `LICENSE`, no CI) and one instance of self-drift (`metrics_port`). Replaced Milestone 7 with the four-phase Distribution Roadmap and began Phase 1.
 - **2026-08-22:** Established Autonomous Execution & Visual Progress Tracking Protocol. Initialized `progress.md` with visual Mermaid diagram and structured milestones.
 - **2026-08-21:** Closed Scenario C accuracy check live against Gemini API. Cleaned `REDIS_URL` test fixture from `worker.py`. Re-verified 298/298 test suite passing at 97% coverage.
 - **2026-08-20:** Ran live GitHub App round-trip on PR #1; verified token minting, webhook signature check, diff analysis, and neutral Check Run creation.
