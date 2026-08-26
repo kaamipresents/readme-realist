@@ -42,7 +42,7 @@ graph TD
     class M6 active;
     class P1 done;
     class P2 active;
-    class P3 active;
+    class P3 todo;
     class P4 todo;
 ```
 
@@ -51,7 +51,7 @@ graph TD
 ## 1. Executive Summary & Current Status
 
 - **Project:** ReadMe Realist (Automated documentation drift gatekeeper)
-- **Current Active Milestone:** Phase 3: Hosted — Permanent Deployment & Public App (Phase 1 complete; Phase 2 code and live verification complete, pending only the owner's Marketplace opt-in; Milestone 6 remains open pending stable infrastructure)
+- **Current Active Milestone:** Phase 2 remains open pending one owner-only step (Marketplace opt-in); Phase 3 is scoped but **not yet started** — deployment platform choice is deliberately paused, owner will resume later. Milestone 6 remains open pending stable infrastructure, which Phase 3 provides.
 - **Last Updated:** 2026-08-26
 - **Overall Status:** Core application complete and fully verified end-to-end live against GitHub. Gemini backend (`gemini-2.5-flash` / `gemini-3.7-flash`) evaluated live PR diffs and successfully posted structured `NEEDS_UPDATE` verdict comments and updated Check Runs on GitHub PR #3. Offline suite re-verified 2026-08-26: **330/330 passing**. The repository is now **public** with a **v1.0.0 release** and a moving **v1** tag, and the GitHub Action has been live-verified end to end on a real runner. Focus has shifted from building the engine to distributing it — see the Distribution Roadmap below.
 
@@ -153,6 +153,7 @@ cost and zero per-user inference cost.
 
 ### Phase 3: Hosted — Permanent Deployment & Public App
 *Goal: the zero-config App path becomes real for third parties.*
+*Status: **paused before starting** — owner will pick up deployment platform choice later. Candidates discussed: Fly.io (recommended — free allowance covers a small always-on service, deploys straight from the existing `Dockerfile`), Railway (similar, usage-based rather than a free tier), Cloud Run (best fit for webhook traffic via scale-to-zero, but needs a GCP project/billing set up first).*
 - [ ] Verify production `Dockerfile` build and container healthcheck
 - [ ] Deploy to a cloud container runtime with a permanent webhook URL (Cloud Run / Fly.io / Railway)
 - [ ] Repoint the GitHub App registration from the `cloudflared` tunnel to the permanent URL
@@ -195,6 +196,7 @@ cost and zero per-user inference cost.
 
 ## 5. Session & Execution History
 
+- **2026-08-26 (latest):** Paused deliberately before starting Phase 3 — owner will choose the deployment platform (Fly.io / Railway / Cloud Run) and resume later. PROGRESS.md brought current: Phase 1 fully closed, Phase 2 closed except the owner's Marketplace opt-in, Phase 3 marked not-started rather than in-progress. Working tree confirmed clean; local and remote `main` confirmed in sync — nothing pending to push.
 - **2026-08-26 (latest):** Repository flipped to public. Tagged and released `v1.0.0`, with a moving `v1` alias pointing at it; confirmed via the API that `uses: kaamipresents/readme-realist@v1` resolves to a real `action.yml`. Phase 1 is now fully complete. Phase 2 is complete except for the owner ticking "Publish to Marketplace" on the release. Began Phase 3.
 - **2026-08-26 (later):** Live-verified the Action end to end on a real GitHub runner via a dogfood test PR (#8) — correctly caught an undocumented env var and published the drift comment + neutral Check Run. Test PR closed, branches cleaned up. Only Phase 1's repo-visibility item now stands between the Action and public availability.
 - **2026-08-26 (later):** Phase 2 code complete. Added `GITHUB_AUTH_MODE`, `StaticTokenAuth`, `GitHubClient.fetch_pull_request`, `app/cli.py`, and a composite `action.yml`. Suite grew 298 → 330, all passing; ruff and mypy clean. Marketplace publication remains blocked on the repository being public.
