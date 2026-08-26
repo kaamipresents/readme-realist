@@ -1,0 +1,43 @@
+# Runs ReadMe Realist against itself, using the Action defined at the root
+# of this same repository (`uses: ./`). This is the closest thing to a live
+# test the Action gets before it is tagged and published: it proves the
+# composite action actually executes on a GitHub runner, end to end, rather
+# than only having been validated by YAML parsing and local CLI smoke tests.
+#
+# Scoped to branches named `dogfood/**` so it never fires on real project
+# PRs and never competes with them for the free-tier Gemini quota.
+
+name: Dogfood the Action
+
+on:
+  pull_request:
+    branches: [main]
+    paths-ignore: []
+  workflow_dispatch:
+    inputs:
+      pull_request_number:
+        description: "PR number to review (required for workflow_dispatch)"
+        required: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+jobs:
+  self-review:
+    # Only ever run for the dogfood branch convention, or a manual dispatch.
+    if: >-
+      startsWith(github.head_ref, 'dogfood/') ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run ReadMe Realist against itself
+        uses: ./
+        with:
+          gemini-api-key: ${{ secrets.GEMINI_API_KEY }}
+          pull-request-number: ${{ github.event.pull_request.number || inputs.pull_request_number }}
+          # Advisory only — a bad dogfood run must never block real merges.
+          fail-on-drift: "false"
