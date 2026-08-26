@@ -196,6 +196,22 @@ class GitHubClient:
         )
         return response.text
 
+    async def fetch_pull_request(
+        self, owner: str, repo: str, pull_number: int, *, installation_id: int = 0
+    ) -> dict[str, Any]:
+        """PR metadata as JSON.
+
+        The webhook path never needs this — the delivery payload already
+        carries head SHA, refs, and draft state. The CLI has no payload, so it
+        reconstructs `PullRequestContext` from here instead.
+        """
+        response = await self._request(
+            "GET",
+            f"/repos/{owner}/{repo}/pulls/{pull_number}",
+            installation_id=installation_id,
+        )
+        return dict(response.json())
+
     async def list_tree_paths(self, ctx: PullRequestContext) -> tuple[list[dict[str, Any]], bool]:
         """Every blob on the PR head ref, plus GitHub's own truncation flag."""
         response = await self._request(

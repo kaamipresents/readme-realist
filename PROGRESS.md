@@ -41,7 +41,7 @@ graph TD
     class M5 done;
     class M6 active;
     class P1 active;
-    class P2 todo;
+    class P2 active;
     class P3 todo;
     class P4 todo;
 ```
@@ -130,11 +130,17 @@ to an install action.
 
 ### Phase 2: Frictionless — CLI & GitHub Action
 *Goal: adoption in ~2 minutes instead of ~20. Highest-leverage phase.*
-- [ ] Build standalone CLI entry point (`python -m app.cli review <owner/repo> <pr>`) reusing `ReviewPipeline` unchanged, authenticating via a plain `GITHUB_TOKEN` rather than App JWT
-- [ ] Add root `action.yml` wrapping the existing `Dockerfile`
-- [ ] Publish to GitHub Marketplace (free; Actions require no review process)
-- [ ] Change the website CTA from `#setup` anchor to a copy-paste workflow snippet
-- [ ] Document the Action path in `README.md` and `GUIDE.md`
+- [x] Add `GITHUB_AUTH_MODE` (`app` | `token`) to `Settings` so neither deployment shape has to invent credentials it never uses; App-mode validation is unchanged
+- [x] Add `StaticTokenAuth`, satisfying the same duck-typed contract as `GitHubAppAuth` — `GitHubClient` required no changes
+- [x] Add `GitHubClient.fetch_pull_request` so the CLI can rebuild `PullRequestContext` without a webhook payload
+- [x] Build standalone CLI entry point (`python -m app.cli review <owner/repo> <pr>`) reusing `ReviewPipeline` unchanged, with `--dry-run`, `--fail-on-drift`, `--docs`, `--provider`
+- [x] Add root `action.yml` — **composite**, not Docker: a Docker action rebuilds its image on every run in every consumer repo, costing users 60–90s per PR
+- [x] Write workflow step summaries when running inside Actions
+- [x] Add `examples/readme-realist.yml` as a copy-paste workflow
+- [x] Document the Action path in `README.md`, `GUIDE.md`, and `.env.example`
+- [x] 32 new tests covering argument handling, context assembly, exit codes, and the dry-run no-write guarantee (330 total)
+- [ ] **Blocked on Phase 1:** tag `v1` and publish to GitHub Marketplace — both require the repository to be public
+- [ ] Change the website CTA from `#setup` anchor to the copy-paste workflow snippet *(separate codebase; not in this repo)*
 
 *Why this ranks above Phase 3:* GitHub runs the container on its own runners
 and each user supplies their own model key, so this path carries zero hosting
@@ -184,6 +190,7 @@ cost and zero per-user inference cost.
 
 ## 5. Session & Execution History
 
+- **2026-08-26 (later):** Phase 2 code complete. Added `GITHUB_AUTH_MODE`, `StaticTokenAuth`, `GitHubClient.fetch_pull_request`, `app/cli.py`, and a composite `action.yml`. Suite grew 298 → 330, all passing; ruff and mypy clean. Marketplace publication remains blocked on the repository being public.
 - **2026-08-26:** Audited project state against claims; re-ran offline suite (298/298 passing). Identified three distribution blockers (private repo, missing `LICENSE`, no CI) and one instance of self-drift (`metrics_port`). Replaced Milestone 7 with the four-phase Distribution Roadmap and began Phase 1.
 - **2026-08-22:** Established Autonomous Execution & Visual Progress Tracking Protocol. Initialized `progress.md` with visual Mermaid diagram and structured milestones.
 - **2026-08-21:** Closed Scenario C accuracy check live against Gemini API. Cleaned `REDIS_URL` test fixture from `worker.py`. Re-verified 298/298 test suite passing at 97% coverage.

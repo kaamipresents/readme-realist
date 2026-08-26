@@ -1,0 +1,38 @@
+# Copy this file to `.github/workflows/readme-realist.yml` in your repository.
+#
+# Then add one secret: Settings → Secrets and variables → Actions →
+# New repository secret, named GEMINI_API_KEY. Get a key from
+# https://aistudio.google.com/apikey — the free tier is enough to try it.
+#
+# That is the whole setup. No server, no webhook, no GitHub App.
+
+name: Documentation drift
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read # read the diff and the docs
+  pull-requests: write # post the review comment
+  checks: write # publish the Check Run
+
+jobs:
+  readme-realist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: kaamipresents/readme-realist@v1
+        with:
+          gemini-api-key: ${{ secrets.GEMINI_API_KEY }}
+
+          # Which documentation to check the diff against.
+          # docs-globs: "README.md,docs/**/*.md"
+
+          # Use Anthropic instead:
+          # llm-provider: anthropic
+          # anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+
+          # Turn the check into a hard merge gate. Leave this off until you
+          # have watched the verdicts for a few weeks — a false positive on a
+          # blocking check stops somebody's merge.
+          # fail-on-drift: "true"

@@ -133,6 +133,36 @@ class GitHubAppAuth:
         return _CachedToken(token=token, expires_at=expires_at)
 
 
+class StaticTokenAuth:
+    """Auth for the CLI and the GitHub Action, where a token already exists.
+
+    Satisfies the same duck-typed contract `GitHubClient` expects of
+    `GitHubAppAuth` — `installation_token()` and `invalidate()` — but there is
+    nothing to mint: a workflow runner injects `GITHUB_TOKEN` directly, and no
+    App, installation, or private key is involved.
+
+    `installation_id` is accepted and ignored. Callers in this mode have no
+    installation, and `PullRequestContext` requires the field, so they pass 0.
+    """
+
+    __slots__ = ("_token",)
+
+    def __init__(self, token: str) -> None:
+        self._token = token
+
+    async def installation_token(self, installation_id: int) -> str:
+        return self._token
+
+    def invalidate(self, installation_id: int) -> None:
+        """No-op: there is no cache, and a fixed token cannot be re-minted.
+
+        A 401 here means the supplied token is wrong or under-scoped. The
+        client's retry loop will exhaust and surface that as a `GitHubApiError`,
+        which is the correct outcome — retrying cannot help.
+        """
+        return None
+
+
 def _parse_expiry(raw: object) -> float:
     """GitHub returns ISO-8601 with a `Z` suffix; fall back to +1h."""
     if isinstance(raw, str):

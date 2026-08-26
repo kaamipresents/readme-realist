@@ -48,7 +48,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         backend = build_backend(resolved)
 
         auth = GitHubAppAuth(
-            app_id=resolved.github_app_id,
+            app_id=resolved.app_id,
             private_key_pem=resolved.private_key_pem,
             http=http,
             api_base_url=resolved.github_api_base_url,
