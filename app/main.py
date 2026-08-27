@@ -130,11 +130,20 @@ def __getattr__(name: str) -> FastAPI:
 
 
 if __name__ == "__main__":  # pragma: no cover
+    import os
+
     import uvicorn
 
+    # `log_config=None` hands logging entirely to `configure_logging` (structured
+    # JSON with secret redaction) — uvicorn must not install its own handlers on
+    # top. `proxy_headers` keeps the client IP and scheme intact through the
+    # platform load balancer that always fronts the hosted container; `PORT` is
+    # read so the identical image runs on Cloud Run, Fly.io, or Railway unchanged.
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",
-        port=8000,
+        port=int(os.environ.get("PORT", "8000")),
         log_config=None,
+        proxy_headers=True,
+        forwarded_allow_ips=os.environ.get("FORWARDED_ALLOW_IPS", "*"),
     )

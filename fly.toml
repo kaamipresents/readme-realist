@@ -1,0 +1,40 @@
+# Fly.io deployment for the ReadMe Realist webhook server (GITHUB_AUTH_MODE=app).
+#
+# One-time:   fly launch --no-deploy --copy-config --name readme-realist
+# Secrets:    see DEPLOY.md — set GITHUB_APP_ID, GITHUB_WEBHOOK_SECRET,
+#             GITHUB_PRIVATE_KEY, GEMINI_API_KEY with `fly secrets set`
+# Deploy:     fly deploy
+# URL:        https://readme-realist.fly.dev  (webhook: .../webhooks/github)
+
+app = "readme-realist"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  LOG_FORMAT = "json"
+  LOG_LEVEL = "INFO"
+  LLM_PROVIDER = "gemini"
+  # uvicorn sees Fly's proxy as the peer; trust it so X-Forwarded-* is honoured.
+  FORWARDED_ALLOW_IPS = "*"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = "suspend"
+  auto_start_machines = true
+  # Keep one machine warm: a suspended machine can miss GitHub's webhook
+  # delivery window, and GitHub only retries a handful of times.
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    method = "GET"
+    path = "/healthz"
+    interval = "15s"
+    timeout = "3s"
+    grace_period = "10s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

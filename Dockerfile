@@ -39,9 +39,10 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD python -c "import urllib.request,sys; \
 sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3).status == 200 else 1)"
 
-# `--proxy-headers` so the client IP and scheme survive a load balancer.
-CMD ["uvicorn", "app.main:app", \
-     "--host", "0.0.0.0", \
-     "--port", "8000", \
-     "--proxy-headers", \
-     "--log-config", "/dev/null"]
+# Launch through `app.main`'s own entrypoint: it calls `uvicorn.run(...,
+# log_config=None, proxy_headers=True)`, so the app's structured-JSON logging
+# owns every handler and the client IP/scheme survive the platform load
+# balancer. The old `uvicorn --log-config /dev/null` form now aborts at boot —
+# modern uvicorn feeds the path to `logging.config.fileConfig`, which rejects an
+# empty file. Honours `$PORT` for Cloud Run / Railway.
+CMD ["python", "-m", "app.main"]
