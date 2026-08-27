@@ -41,7 +41,7 @@ jobs:
   readme-realist:
     runs-on: ubuntu-latest
     steps:
-      - uses: kaamipresents/readme-realist@v1
+      - uses: kaamipresents/readme-realist@v2
         with:
           gemini-api-key: ${{ secrets.GEMINI_API_KEY }}
 ```
