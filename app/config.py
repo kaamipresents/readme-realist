@@ -122,6 +122,7 @@ class Settings(BaseSettings):
 
     # --- Diff handling ------------------------------------------------------
     diff_max_chars: int = Field(default=120_000, ge=1_000)
+    diff_context_lines: int = Field(default=3, ge=0, le=20)
     skip_llm_on_noise_only: bool = True
 
     # --- Feedback behaviour -------------------------------------------------
