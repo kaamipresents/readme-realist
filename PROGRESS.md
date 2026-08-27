@@ -39,7 +39,7 @@ graph TD
     class M3 done;
     class M4 done;
     class M5 done;
-    class M6 active;
+    class M6 done;
     class P1 done;
     class P2 active;
     class P3 active;
@@ -51,7 +51,7 @@ graph TD
 ## 1. Executive Summary & Current Status
 
 - **Project:** ReadMe Realist (Automated documentation drift gatekeeper)
-- **Current Active Milestone:** Phase 3: Hosted — Permanent Deployment & Public App. The webhook server is **deployed and live** at `https://readme-realist.onrender.com` (Render, from `main`); `/healthz` + `/readyz` return 200 and the webhook route rejects unsigned POSTs with 401. The GitHub App is **public** with permissions set. Remaining: point the App webhook at the Render URL and see a green `ping`, then close the three Milestone 6 live checks on this stable infrastructure.
+- **Current Active Milestone:** Phase 3: Hosted — Permanent Deployment & Public App, **nearly complete**. The webhook server is deployed and live at `https://readme-realist.onrender.com` (Render, from `main`), the GitHub App webhook is repointed at it, the App is public, and **all three Milestone 6 live checks passed** end to end against it on 2026-08-28. Remaining: publish the install URL on the website (separate repo), and — as follow-ups — move the `v1` tag forward + add `v2.0.0`, tick Publish-to-Marketplace on the `v2` release, and fix the stale default `gemini_model`.
 - **Last Updated:** 2026-08-28
 - **Overall Status:** Core application complete and fully verified end-to-end live against GitHub. Gemini backend (`gemini-2.5-flash` / `gemini-3.7-flash`) evaluated live PR diffs and successfully posted structured `NEEDS_UPDATE` verdict comments and updated Check Runs on GitHub PR #3. Offline suite re-verified 2026-08-26: **330/330 passing**. The repository is **public**; releases are **`v2` ("ReadMe Realist 2.0", latest)** and **`v1.0.0`**, with moving **`v1`** and **`v2`** major aliases. The GitHub Action has been live-verified end to end on a real runner, and the hosted App server now runs permanently on Render. Focus is distribution — see the Distribution Roadmap below.
 
@@ -99,9 +99,9 @@ graph TD
 - [x] Mint live GitHub App installation token (`POST .../access_tokens` → 201)
 - [x] Receive live webhook via Cloudflare tunnel and verify signature
 - [x] Create and PATCH real Check Run on GitHub (`kaamipresents/readme-realist#1`)
-- [ ] Observe live `NEEDS_UPDATE` PR comment on real PR #1 with fresh quota
-- [ ] Prove resolve path (commit updating `README.md` rewrites PR comment to up-to-date and green check)
-- [ ] Confirm whitespace-only push triggers zero-LLM noise skip path live
+- [x] **Observe live `NEEDS_UPDATE` PR comment** — 2026-08-28 on throwaway PR #12 against the Render deployment. An undocumented `diff_context_lines` (`DIFF_CONTEXT_LINES`) added to `Settings` drew a drift comment with the exact README table row to add, plus an advisory Check Run.
+- [x] **Prove resolve path** — same PR: a follow-up commit documenting the var in `README.md` + `.env.example` rewrote the *same* comment (count stayed 1) to "✅ Documentation is up to date" and flipped the Check Run to `success`.
+- [x] **Confirm whitespace-only push triggers zero-LLM noise skip path live** — same PR: a whitespace-only commit produced no comment churn and a green check (LLM-skip reason visible in Render logs).
 
 ---
 
@@ -157,8 +157,8 @@ cost and zero per-user inference cost.
 - [x] Verify production `Dockerfile` build and container healthcheck — **done 2026-08-27**. Build clean; container boots, `/healthz` and `/readyz` return 200, and Docker's `HEALTHCHECK` reports `healthy`. Fixed a boot-blocking bug found in the process: the `CMD` ran `uvicorn --log-config /dev/null`, which modern uvicorn feeds to `logging.config.fileConfig`, aborting with "`/dev/null` is an empty file". `CMD` is now `python -m app.main`, whose entrypoint calls `uvicorn.run(..., log_config=None, proxy_headers=True)` and honours `$PORT` / `$FORWARDED_ALLOW_IPS`. Suite still 330/330; ruff and mypy clean.
 - [x] Prepare permanent-deploy assets — **done 2026-08-27**. Added `fly.toml` (warm machine, `/healthz` check), `.dockerignore`, and `DEPLOY.md` — copy-paste runbooks for Fly.io / Cloud Run / Railway, the required env table, the App-repoint steps, and the go-public steps.
 - [x] **Deployed to a cloud runtime with a permanent URL** — **done 2026-08-27**, on **Render** from `main` (not Fly.io in the end). Live at `https://readme-realist.onrender.com`; `/healthz` + `/readyz` return 200, `/webhooks/github` returns 405 to GET and 401 to an unsigned POST (signature check active). Note: Render does not auto-load an uploaded `.env` — the four credentials (`GITHUB_APP_ID`, `GITHUB_WEBHOOK_SECRET`, `GITHUB_PRIVATE_KEY`, `GEMINI_API_KEY`) are set as Environment vars; App ID/secret/key were regenerated as the originals were not on disk. Free instance sleeps after ~15 min idle — a cold start can exceed GitHub's 10 s webhook timeout (GitHub retries; the app returns 202 fast once warm).
-- [ ] **Owner action:** point the GitHub App webhook at `https://readme-realist.onrender.com/webhooks/github` and confirm a green `ping` (202) in Recent Deliveries — this proves the webhook secret matches on both sides
-- [ ] Close out the three remaining Milestone 6 live-verification boxes on stable infrastructure
+- [x] **GitHub App webhook repointed at the Render URL** — 2026-08-28. Recent Deliveries show live `pull_request` / `check_suite` events returning **2xx**; the hosted server minted an installation token and published Check Runs, proving the regenerated App ID + private key + webhook secret all work.
+- [x] **All three Milestone 6 live-verification boxes closed on stable infrastructure** — 2026-08-28 via throwaway PR #12 (see Milestone 6 section). Required switching `GEMINI_MODEL` to `gemini-2.5-flash`: the repo default `gemini-3.7-flash` failed every call on this API key (instant error → neutral degrade, no comment) until swapped. **Follow-up: change the repo's default `gemini_model` (and README / GUIDE / `.env.example`) away from `gemini-3.7-flash`** — flagged as a separate task.
 - [x] **GitHub App is Public** — done 2026-08-27; permissions (PR RW, Checks RW, Contents RO) and the Pull request event subscription confirmed set
 - [ ] Publish the real install URL (`https://github.com/apps/<app-slug>/installations/new`) on the website *(separate codebase; not in this repo)*
 
@@ -188,7 +188,9 @@ cost and zero per-user inference cost.
 
 - **Gemini Free-Tier Quota:** Daily limit (`quotaValue: 20`) on free tier; daily reset or pay-as-you-go billing required for high-frequency testing.
 - **Anthropic API Credits:** Account currently has zero credits; Anthropic backend verified via mocks only.
-- **Dynamic Tunnel URL:** Local dev uses ephemeral `cloudflared` quick tunnels; Webhook URL must be updated in GitHub App settings upon tunnel restart. Resolved by Phase 3.
+- **Dynamic Tunnel URL:** ~~Local dev uses ephemeral `cloudflared` quick tunnels; Webhook URL must be updated in GitHub App settings upon tunnel restart.~~ Resolved 2026-08-28 — the GitHub App webhook now points at the permanent Render URL `https://readme-realist.onrender.com/webhooks/github`.
+- **Gemini model default:** the repo ships `GEMINI_MODEL` defaulting to `gemini-3.7-flash`, which failed every call on the deployed key (2026-08-28); the Render service overrides it to `gemini-2.5-flash`. The default should be changed in-repo — see the 2026-08-28 history entry.
+- **Render free instance cold start:** the hosted service sleeps after ~15 min idle; the first webhook after a sleep can exceed GitHub's ~10 s delivery timeout. GitHub retries, and the app returns 202 before doing any work once warm, so deliveries still land — but a paid instance removes the risk.
 - **Repository Visibility:** ~~Repo is `PRIVATE` and carries no `LICENSE` file~~ Resolved 2026-08-26 — `LICENSE` added and repo flipped to public.
 - **No Continuous Integration:** No `.github/workflows/` exists; the 298-test suite runs only on developer machines. Resolved by Phase 1.
 - **Self-Drift:** `metrics_port` in `app/config.py` is read by no code and documented in no file — the drift this project exists to catch, present in its own repo. Resolved by Phase 1.
@@ -197,7 +199,8 @@ cost and zero per-user inference cost.
 
 ## 5. Session & Execution History
 
-- **2026-08-28 (latest):** Deployed the webhook server to **Render** (`https://readme-realist.onrender.com`, from `main`) — `/healthz` + `/readyz` 200, `/webhooks/github` 405 to GET / 401 to unsigned POST. Diagnosed the first boot failure: Render does not load an uploaded `.env`, so credentials had to go in the Environment tab; the GitHub App ID, webhook secret, and private key were regenerated as the originals were not on disk. GitHub App set **Public**, permissions confirmed. Released **`v2` / "ReadMe Realist 2.0"** (latest) from the Phase 3 commit; repointed `README.md` + `examples/readme-realist.yml` to `@v2` on branch `chore/promote-v2`. **Still open:** point the App webhook at the Render URL and confirm a green `ping`; run the three Milestone 6 live checks; move the `v1` alias forward and add an immutable `v2.0.0` tag; tick Publish-to-Marketplace on the `v2` release; website install link.
+- **2026-08-28 (latest):** Closed **all three Milestone 6 live-verification boxes** against the Render deployment via throwaway PR #12: (1) an undocumented `DIFF_CONTEXT_LINES` setting drew a `NEEDS_UPDATE` comment with the exact README row + advisory Check Run; (2) documenting it rewrote the *same* comment to up-to-date and turned the Check Run green; (3) a whitespace-only push produced no comment churn and a green check. PR #12 closed unmerged, branch deleted. **Root cause found along the way:** the repo default `GEMINI_MODEL=gemini-3.7-flash` failed every call on the deployed API key (instant error → neutral degrade, no comment); switching Render to `GEMINI_MODEL=gemini-2.5-flash` fixed it immediately. Milestone 6 is now **done**. Flagged a follow-up to change the repo's default Gemini model in `app/config.py`, `app/services/llm/gemini.py`, tests, `README.md`, `GUIDE.md`, and `.env.example`.
+- **2026-08-28:** Deployed the webhook server to **Render** (`https://readme-realist.onrender.com`, from `main`) — `/healthz` + `/readyz` 200, `/webhooks/github` 405 to GET / 401 to unsigned POST. Diagnosed the first boot failure: Render does not load an uploaded `.env`, so credentials had to go in the Environment tab; the GitHub App ID, webhook secret, and private key were regenerated as the originals were not on disk. GitHub App set **Public**, permissions confirmed. Released **`v2` / "ReadMe Realist 2.0"** (latest) from the Phase 3 commit; repointed `README.md` + `examples/readme-realist.yml` to `@v2` on branch `chore/promote-v2`. **Still open:** point the App webhook at the Render URL and confirm a green `ping`; run the three Milestone 6 live checks; move the `v1` alias forward and add an immutable `v2.0.0` tag; tick Publish-to-Marketplace on the `v2` release; website install link.
 - **2026-08-27:** Resumed and began Phase 3 execution. Verified the production `Dockerfile` end to end — build clean, container boots, `/healthz` + `/readyz` return 200, Docker `HEALTHCHECK` goes `healthy`. Found and fixed a boot-blocking bug: `CMD uvicorn --log-config /dev/null` aborts on current uvicorn (`fileConfig` rejects the empty file); `CMD` is now `python -m app.main` with `log_config=None`, `proxy_headers=True`, and `$PORT` support so one image runs on Cloud Run / Fly / Railway unchanged. Added `fly.toml`, `.dockerignore`, and `DEPLOY.md`. Suite 330/330, ruff + mypy clean. Remaining Phase 3 items all need an owner with cloud and GitHub-App access.
 - **2026-08-26 (later):** Paused deliberately before starting Phase 3 — owner to choose the deployment platform (Fly.io / Railway / Cloud Run) and resume later. PROGRESS.md brought current: Phase 1 fully closed, Phase 2 closed except the owner's Marketplace opt-in, Phase 3 marked not-started rather than in-progress. (Superseded the next day when Phase 3 execution began.)
 - **2026-08-26 (latest):** Repository flipped to public. Tagged and released `v1.0.0`, with a moving `v1` alias pointing at it; confirmed via the API that `uses: kaamipresents/readme-realist@v1` resolves to a real `action.yml`. Phase 1 is now fully complete. Phase 2 is complete except for the owner ticking "Publish to Marketplace" on the release. Began Phase 3.
