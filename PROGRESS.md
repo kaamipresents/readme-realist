@@ -42,7 +42,7 @@ graph TD
     class M6 active;
     class P1 done;
     class P2 active;
-    class P3 todo;
+    class P3 active;
     class P4 todo;
 ```
 
@@ -51,8 +51,8 @@ graph TD
 ## 1. Executive Summary & Current Status
 
 - **Project:** ReadMe Realist (Automated documentation drift gatekeeper)
-- **Current Active Milestone:** Phase 2 remains open pending one owner-only step (Marketplace opt-in); Phase 3 is scoped but **not yet started** — deployment platform choice is deliberately paused, owner will resume later. Milestone 6 remains open pending stable infrastructure, which Phase 3 provides.
-- **Last Updated:** 2026-08-26
+- **Current Active Milestone:** Phase 3: Hosted — Permanent Deployment & Public App (Phase 1 complete; Phase 2 code and live verification complete, pending only the owner's Marketplace opt-in; Milestone 6 remains open pending stable infrastructure). Production image build and container healthcheck now verified; deploy manifests and runbook committed; the deployment platform choice, the deploy itself, the App repoint, and the public flip need an owner with cloud + GitHub-App access.
+- **Last Updated:** 2026-08-27
 - **Overall Status:** Core application complete and fully verified end-to-end live against GitHub. Gemini backend (`gemini-2.5-flash` / `gemini-3.7-flash`) evaluated live PR diffs and successfully posted structured `NEEDS_UPDATE` verdict comments and updated Check Runs on GitHub PR #3. Offline suite re-verified 2026-08-26: **330/330 passing**. The repository is now **public** with a **v1.0.0 release** and a moving **v1** tag, and the GitHub Action has been live-verified end to end on a real runner. Focus has shifted from building the engine to distributing it — see the Distribution Roadmap below.
 
 ---
@@ -153,13 +153,14 @@ cost and zero per-user inference cost.
 
 ### Phase 3: Hosted — Permanent Deployment & Public App
 *Goal: the zero-config App path becomes real for third parties.*
-*Status: **paused before starting** — owner will pick up deployment platform choice later. Candidates discussed: Fly.io (recommended — free allowance covers a small always-on service, deploys straight from the existing `Dockerfile`), Railway (similar, usage-based rather than a free tier), Cloud Run (best fit for webhook traffic via scale-to-zero, but needs a GCP project/billing set up first).*
-- [ ] Verify production `Dockerfile` build and container healthcheck
-- [ ] Deploy to a cloud container runtime with a permanent webhook URL (Cloud Run / Fly.io / Railway)
-- [ ] Repoint the GitHub App registration from the `cloudflared` tunnel to the permanent URL
+*Platform candidates (owner picks): Fly.io (recommended — free allowance covers a small always-on service, deploys straight from the existing `Dockerfile`; `fly.toml` is committed), Railway (similar, usage-based rather than a free tier), Cloud Run (good fit for webhook traffic via scale-to-zero, but needs a GCP project/billing set up first). All three have copy-paste runbooks in `DEPLOY.md`.*
+- [x] Verify production `Dockerfile` build and container healthcheck — **done 2026-08-27**. Build clean; container boots, `/healthz` and `/readyz` return 200, and Docker's `HEALTHCHECK` reports `healthy`. Fixed a boot-blocking bug found in the process: the `CMD` ran `uvicorn --log-config /dev/null`, which modern uvicorn feeds to `logging.config.fileConfig`, aborting with "`/dev/null` is an empty file". `CMD` is now `python -m app.main`, whose entrypoint calls `uvicorn.run(..., log_config=None, proxy_headers=True)` and honours `$PORT` / `$FORWARDED_ALLOW_IPS`. Suite still 330/330; ruff and mypy clean.
+- [x] Prepare permanent-deploy assets — **done 2026-08-27**. Added `fly.toml` (warm machine, `/healthz` check), `.dockerignore`, and `DEPLOY.md` — copy-paste runbooks for Fly.io / Cloud Run / Railway, the required env table, the App-repoint steps, and the go-public steps.
+- [ ] **Owner action:** deploy the image to a cloud container runtime with a permanent webhook URL (Cloud Run / Fly.io / Railway) using `DEPLOY.md`
+- [ ] **Owner action:** repoint the GitHub App registration from the `cloudflared` tunnel to the permanent URL
 - [ ] Close out the three remaining Milestone 6 live-verification boxes on stable infrastructure
-- [ ] Flip the GitHub App registration from private to **Public** so third parties can install it
-- [ ] Publish the real install URL on the website
+- [ ] **Owner action:** flip the GitHub App registration from private to **Public** so third parties can install it
+- [ ] Publish the real install URL on the website *(separate codebase; not in this repo)*
 
 ### Phase 4: Product — Metering & Multi-Tenancy
 *Goal: only if Phases 1–3 demonstrate real demand. Deliberately deferred.*
@@ -196,7 +197,8 @@ cost and zero per-user inference cost.
 
 ## 5. Session & Execution History
 
-- **2026-08-26 (latest):** Paused deliberately before starting Phase 3 — owner will choose the deployment platform (Fly.io / Railway / Cloud Run) and resume later. PROGRESS.md brought current: Phase 1 fully closed, Phase 2 closed except the owner's Marketplace opt-in, Phase 3 marked not-started rather than in-progress. Working tree confirmed clean; local and remote `main` confirmed in sync — nothing pending to push.
+- **2026-08-27 (latest):** Resumed and began Phase 3 execution. Verified the production `Dockerfile` end to end — build clean, container boots, `/healthz` + `/readyz` return 200, Docker `HEALTHCHECK` goes `healthy`. Found and fixed a boot-blocking bug: `CMD uvicorn --log-config /dev/null` aborts on current uvicorn (`fileConfig` rejects the empty file); `CMD` is now `python -m app.main` with `log_config=None`, `proxy_headers=True`, and `$PORT` support so one image runs on Cloud Run / Fly / Railway unchanged. Added `fly.toml`, `.dockerignore`, and `DEPLOY.md`. Suite 330/330, ruff + mypy clean. Remaining Phase 3 items all need an owner with cloud and GitHub-App access.
+- **2026-08-26 (later):** Paused deliberately before starting Phase 3 — owner to choose the deployment platform (Fly.io / Railway / Cloud Run) and resume later. PROGRESS.md brought current: Phase 1 fully closed, Phase 2 closed except the owner's Marketplace opt-in, Phase 3 marked not-started rather than in-progress. (Superseded the next day when Phase 3 execution began.)
 - **2026-08-26 (latest):** Repository flipped to public. Tagged and released `v1.0.0`, with a moving `v1` alias pointing at it; confirmed via the API that `uses: kaamipresents/readme-realist@v1` resolves to a real `action.yml`. Phase 1 is now fully complete. Phase 2 is complete except for the owner ticking "Publish to Marketplace" on the release. Began Phase 3.
 - **2026-08-26 (later):** Live-verified the Action end to end on a real GitHub runner via a dogfood test PR (#8) — correctly caught an undocumented env var and published the drift comment + neutral Check Run. Test PR closed, branches cleaned up. Only Phase 1's repo-visibility item now stands between the Action and public availability.
 - **2026-08-26 (later):** Phase 2 code complete. Added `GITHUB_AUTH_MODE`, `StaticTokenAuth`, `GitHubClient.fetch_pull_request`, `app/cli.py`, and a composite `action.yml`. Suite grew 298 → 330, all passing; ruff and mypy clean. Marketplace publication remains blocked on the repository being public.

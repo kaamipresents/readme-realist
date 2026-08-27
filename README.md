@@ -383,10 +383,14 @@ docker build -t readme-realist .
 docker run -p 8000:8000 --env-file .env readme-realist
 ```
 
-The container runs as a non-root user and ships a `HEALTHCHECK` against
-`/healthz`. Point the GitHub App's webhook URL at
+The container runs as a non-root user, starts through `python -m app.main`
+(structured-JSON logging, `proxy_headers` on, honours `$PORT`), and ships a
+`HEALTHCHECK` against `/healthz`. Point the GitHub App's webhook URL at
 `https://<host>/webhooks/github` wherever you host it — the app is a plain
 stateless ASGI service, so anything that runs a container works.
+
+**[DEPLOY.md](DEPLOY.md)** has copy-paste runbooks for Fly.io, Cloud Run, and
+Railway, plus the steps to repoint the GitHub App and take it public.
 
 ## License
 

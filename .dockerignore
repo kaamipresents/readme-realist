@@ -1,0 +1,29 @@
+# The build only COPYs `pyproject.toml`, `README.md`, and `app/`, but an
+# explicit ignore keeps the context small and guarantees no secret or local
+# cache is ever sent to the daemon.
+.git
+.github
+.venv
+venv
+tests
+examples
+Phases
+*.md
+!README.md
+.env
+.env.*
+secrets/
+*.pem
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+__pycache__/
+*.py[cod]
+dist/
+build/
+*.egg-info/
+.idea/
+.vscode/
+fly.toml
