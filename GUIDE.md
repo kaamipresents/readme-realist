@@ -245,3 +245,4 @@ curl http://127.0.0.1:8000/healthz
 3. ReadMe Realist verifies HMAC signature, downloads the PR diff, and scans for doc changes and code changes.
 4. If substantive code changes exist, it queries the LLM against your repository's docs.
 5. It posts a suggested doc fix comment to the PR and updates the GitHub Check Run.
+
