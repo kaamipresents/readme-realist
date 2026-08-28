@@ -343,6 +343,7 @@ No credentials required.
 | `DOCS_GLOBS` | `README.md,docs/**/*.md` | `**` matches across separators |
 | `DOCS_MAX_FILES` / `DOCS_MAX_TOTAL_CHARS` / `DOCS_MAX_FILE_CHARS` | `40` / `200000` / `60000` | Truncation is README-first |
 | `DIFF_MAX_CHARS` | `120000` | |
+| `DIFF_CONTEXT_LINES` | `3` | `0`-`10` lines of context per hunk |
 | `SKIP_LLM_ON_NOISE_ONLY` | `true` | |
 | `DRIFT_CHECK_CONCLUSION` | `neutral` | `failure` makes it a hard merge gate |
 | `POST_PR_COMMENT` / `PUBLISH_CHECK_RUN` | `true` / `true` | |
