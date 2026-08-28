@@ -334,7 +334,7 @@ No credentials required.
 | `GITHUB_API_BASE_URL` | `https://api.github.com` | Set for GitHub Enterprise |
 | `LLM_PROVIDER` | `gemini` | `gemini` or `anthropic` |
 | `GEMINI_API_KEY` | — | Required when provider is `gemini` |
-| `GEMINI_MODEL` | `gemini-3.7-flash` | |
+| `GEMINI_MODEL` | `gemini-2.5-flash` | |
 | `GEMINI_MAX_OUTPUT_TOKENS` | `8000` | |
 | `ANTHROPIC_API_KEY` | — | Required when provider is `anthropic` |
 | `ANTHROPIC_MODEL` | `claude-opus-5` | |

@@ -33,7 +33,7 @@ def test_gemini_is_the_default_backend(rsa_private_key_pem: str) -> None:
     backend = build_backend(settings)
     assert isinstance(backend.evaluator, GeminiDriftEvaluator)
     assert backend.provider is LLMProvider.GEMINI
-    assert backend.model == "gemini-3.7-flash"
+    assert backend.model == "gemini-2.5-flash"
 
 
 def test_anthropic_is_selected_by_configuration(rsa_private_key_pem: str) -> None:

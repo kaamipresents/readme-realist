@@ -40,7 +40,7 @@ def make_gemini_response(
     *,
     finish_reason: str = "STOP",
     include_thought_part: bool = True,
-    model_version: str = "gemini-3.7-flash",
+    model_version: str = "gemini-2.5-flash",
     usage: dict[str, int] | None = None,
 ) -> SimpleNamespace:
     """A response object shaped like the SDK's.
@@ -107,7 +107,7 @@ def analysis(sample_diff: str):
 
 
 def _evaluator(client: FakeGeminiClient) -> GeminiDriftEvaluator:
-    return GeminiDriftEvaluator(client=client, model="gemini-3.7-flash", max_output_tokens=4096)
+    return GeminiDriftEvaluator(client=client, model="gemini-2.5-flash", max_output_tokens=4096)
 
 
 # --------------------------------------------------------------------------- #
@@ -149,7 +149,7 @@ async def test_returns_a_needs_update_verdict(documentation: DocumentationBundle
 
     assert result.verdict.status is DriftStatus.NEEDS_UPDATE
     assert "REDIS_URL" in result.verdict.suggested_edit
-    assert result.model == "gemini-3.7-flash"
+    assert result.model == "gemini-2.5-flash"
 
 
 async def test_returns_an_up_to_date_verdict(documentation: DocumentationBundle, analysis) -> None:
@@ -183,7 +183,7 @@ async def test_sends_the_adapted_schema_and_json_mime_type(
     await _evaluator(client).evaluate(documentation, analysis)
 
     call = client.last_call
-    assert call["model"] == "gemini-3.7-flash"
+    assert call["model"] == "gemini-2.5-flash"
 
     config = call["config"]
     assert config.response_mime_type == "application/json"
