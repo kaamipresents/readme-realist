@@ -134,7 +134,7 @@ GITHUB_PRIVATE_KEY_PATH=./secrets/github-app.private-key.pem
 # --- LLM Provider Settings (Gemini by default) ---
 LLM_PROVIDER=gemini
 GEMINI_API_KEY=your_gemini_api_key_here
-GEMINI_MODEL=gemini-3.7-flash
+GEMINI_MODEL=gemini-2.5-flash
 
 # (Optional: Anthropic)
 # LLM_PROVIDER=anthropic

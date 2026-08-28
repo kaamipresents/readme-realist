@@ -101,7 +101,7 @@ class Settings(BaseSettings):
 
     # --- Gemini -------------------------------------------------------------
     gemini_api_key: SecretStr | None = None
-    gemini_model: str = "gemini-3.7-flash"
+    gemini_model: str = "gemini-2.5-flash"
     gemini_max_output_tokens: int = Field(default=8000, ge=256, le=65536)
     gemini_timeout_seconds: float = Field(default=300.0, gt=0)
     gemini_max_retries: int = Field(default=4, ge=1, le=10)

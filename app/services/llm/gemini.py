@@ -38,7 +38,7 @@ from app.services.llm.schema import GEMINI_VERDICT_JSON_SCHEMA, DriftVerdict
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_GEMINI_MODEL = "gemini-3.7-flash"
+DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
 
 #: Finish reasons meaning the model declined rather than answered. Treated the
 #: same way as an Anthropic `stop_reason: "refusal"` — surfaced, never mistaken
